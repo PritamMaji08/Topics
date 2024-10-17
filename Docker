@@ -282,12 +282,5 @@ CMD ["node", "index.js"]
 
 
  
-
-
-
-
-
-
-
-
-
+1. Bind Mounts---> to have the copy of the docker containers directory in our Host directory[cannot be mnt with external host]
+2. Volumes------->Logical Partition on your host, where you can attach the specific directory of the docker Container[can be mnt with external host]
