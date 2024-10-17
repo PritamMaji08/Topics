@@ -1,0 +1,293 @@
++------------------------------------------------+
+|                    Docker Architecture          |
+|                                                |
+|  +------------------------------------------+  |
+|  |               Docker Daemon              |  |
+|  |                                          |  |
+|  |   - Manages Containers                   |  |
+|  |   - Manages Images                       |  |
+|  |   - Manages Networks                     |  |
+|  |   - Listens for Client Requests          |  |
+|  |                                          |  |
+|  +------------------------------------------+  |
+|                     ^                          |
+|                     |                          |
+|                     | REST API                 |
+|                     |                          |
+|                     v                          |
+|  +------------------------------------------+  |
+|  |               Docker Client               |  |
+|  |                                          |  |
+|  |   - Issues Commands                      |  |
+|  |   - Displays Output                      |  |
+|  |   - User Interface                       |  |
+|  |                                          |  |
+|  +------------------------------------------+  |
++------------------------------------------------+
+
+-----------------------------------------------------------------------------------------------
+
++------------------------------------------------+   
+|                    Docker Engine                |  
+|                                                |
+|  +------------------------------------------+  |
+|  |               Docker Daemon              |  |
+|  |                                          |  |
+|  |   +-----------------+                    |  |
+|  |   | Container       |                    |  |
+|  |   | Runtime         |                    |  |
+|  |   +-----------------+                    |  |
+|  |                                          |  |
+|  +------------------------------------------+  |
+|                                                |
+|  +------------------------------------------+  |
+|  |               Docker Client               |  |
+|  +------------------------------------------+  |
+|                                                |
+|  +------------------------------------------+  |
+|  |               REST API                   |  |
+|  +------------------------------------------+  |
+|                                                |
+|  +------------------------------------------+  |
+|  |            Docker Registry                |  |
+|  | (e.g., Docker Hub, private registry)      |  |
+|  +------------------------------------------+  |
++------------------------------------------------+
+
+
+Docker Client------------------> is the command-line or graphical interface that users interact
+Dockerfile --------------------> pulls Minimal OS i.e Base Image from the Docker Registry. 
+
+
+sudo apt install docker.io -y --------------------------->This will install the DOCKER or what we say as Docker Engine
+
+docker -v ------------------------------>To check the docker is install or not
+
+sudo systemctl start docker ------------------------------> To start the Docker engine
+
+sudo systemctl status docker ------------------------------>To check whether the docker engine is running or not
+	
+sudo systemctl stop docker docker.socket --------------------> To stop the Docker engine
+
+docker build -t image1:my_first_image_to_print . -------------> To create a Docker IMAGE using a Dockerfile 
+
+docker run image1:my_first_image_to_print --------------------> Docker pulls the image from your local, if not found in local it will pull from docker registry
+								A container is created then started
+
+docker images--------------------> to list all Images
+docker ps -a --------------------> to list all Containers
+docker ps    --------------------> to list all Running Containers
+
+docker stop <container_id_or_name> -------> stop a container
+docker start <container_id_or_name> ------> start a container
+docker rm <container_id_or_name>   -------> remove a container
+docker container prune             -------> remove all exited container
+docker rmi <image_id_or_name>    --------> remove an Image
+docker rmi -f <image_id_or_name>  -------> If the image is being used by stopped containers, you might need to force the removal
+docker image prune     ------------------> To remove all images that are not associated with any containers
+
+
+
+To go inside a running container:
+docker exec -it <container_id_or_name> bash------------> You can then run any commands as if you were logged into that container
+
+Running a python or spark-app:
+docker exec <container_id_or_name> spark-submit <path_to_python_script.py>
+docker exec <container_id_or_name> python <path_to_python_script.py>
+
+
+
+
+multi-stage Dockerfile Examples:
+--------------------
+# Stage 1: Build the application
+FROM golang:1.17 AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o myapp
+
+# Stage 2: Create a minimal image for running the application
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/myapp .
+CMD ["./myapp"]
+
+-----------------------------------
+# Stage 1: Build the application
+FROM golang:1.17 AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o myapp
+
+# Stage 2: Use a distroless image
+FROM gcr.io/distroless/base
+WORKDIR /app
+COPY --from=builder /app/myapp .
+CMD ["/app/myapp"]
+-------------------------------------
+
+
+
+
+Docker Compose------------------------------------
+
++-----------------+         +-----------------+         +-----------------+
+|     web         |         |       app       |         |       db        |
+|  (Nginx)        |         |   (Backend)     |         |   (PostgreSQL)  |
+|                 |         |                 |         |                 |
+|                 |         |                 |         |                 |
++--------+--------+         +--------+--------+         +--------+--------+
+         |                           |                           |
+         +---------------------------+---------------------------+
+                             |
+                         Docker Network
+                             |
+                  +----------+----------+
+                  |       Docker        |
+                  |       Compose       |
+                  +---------------------+
+
+
+
+Install:
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version
+docker-compose up
+docker-compose down
+
+
+docker-compose.yml:
+----------------------
+version: '3.8'
+
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+  
+  app:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - ENV=development
+  
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+--------------------------------------------
+version: '3.8'
+
+services:
+  web:
+    container_name: nginx_web
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+  
+  app:
+    container_name: node_app
+    build:
+      context: ./app
+    volumes:
+      - ./app:/app
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://user:password@db:5432/mydatabase
+    depends_on:
+      - db
+
+  db:
+    container_name: postgres_db
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+------------------------
+your-project/
+├── docker-compose.yml
+├── app/
+│   ├── Dockerfile
+│   └── (Your application files, e.g., index.js, package.json)
+└── nginx.conf
+---------------
+Dockerfile
+# Use an official Node.js runtime as a parent image
+FROM node:14
+
+# Set the working directory
+WORKDIR /app
+
+# Copy package.json and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the application code
+COPY . .
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start the application
+CMD ["node", "index.js"]
+
+----------------------------
+
+
+
+
++-------------------------+
+|       Host System       |
+|                         |
+|  +-------------------+  | 
+|  |  /path/on/host   |  |  <--- Bind Mount
+|  +-------------------+  |
+|                         |
+|  +-------------------+  |  
+|  |  /var/lib/docker  |  |  <--- Docker Managed Volume
+|  +-------------------+  |
++-------------------------+
+             |
+             |
++-------------------------+
+|        Docker           |
+|                         |
+|  +-------------------+  |
+|  |   Container 1     |  |
+|  |                   |  |
+|  |  /path/in/container|  |  <--- Mounted Path for Bind Mount
+|  +-------------------+  |
+|                         |
+|  +-------------------+  |
+|  |   Container 2     |  |
+|  |                   |  |
+|  |  /data            |  |  <--- Mounted Path for Volume
+|  +-------------------+  |
++-------------------------+
+
+
+ 
+
+
+
+
+
+
+
+
+
