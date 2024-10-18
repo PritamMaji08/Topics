@@ -1,0 +1,110 @@
+ +-------------------------------------------------------+
+ |                       Kubernetes                       |
+ |                                                       |
+ | +-------------------+       +---------------------+  |
+ | |   Control Plane   |       |      Data Nodes     |  |
+ | |     (Master)      |       |         (Node)      |  |
+ | | +--------------+  |       | +-----------------+ |  |
+ | | |   API Server | <--------| |     Kubelet     | |  |
+ | | +--------------+  |       | +-----------------+ |  |
+ | |                   |       | +-----------------+ |  |
+ | | +--------------+  |       | |    Kube-Proxy   | |  |
+ | | |  Scheduler   |  |       | +-----------------+ |  |
+ | | +--------------+  |       | +-----------------+ |  |
+ | |                   |       | |   Container      | |  |
+ | | +--------------+  |       | |    Runtime       | |  |
+ | | |   Controller |  |       | +-----------------+ |  |
+ | | |   Manager    |  |       |                     |  |
+ | | +--------------+  |       |                     |  |
+ | +-------------------+       +---------------------+  |
+ |                                                       |
+ | +---------------------+  +-------------------------+ |
+ | |  etcd (Key-Value    |  |       Add-ons           | |
+ | |  Store)             |  |                         | |
+ | +---------------------+  +-------------------------+ |
+ +-------------------------------------------------------+
+
+
++--------------------------------------------------+
+|                     Kubernetes                    |
+|                                                  |
+| +----------------------------------------------+ |
+| |                    Pod                       | |
+| |                                              | |
+| | +------------+   +------------+             | |
+| | |  Container |   |  Container |             | |
+| | |     A      |   |     B      |             | |
+| | +------------+   +------------+             | |
+| |      |                    |                   | |
+| |      |    +---------------------------+      | |
+| |      |    |         Shared Volume     |      | |
+| |      |    +---------------------------+      | |
+| |      |                                   |    | |
+| | +---------------------------------------+ |    | |
+| | |              Networking                | |    | |
+| | |   (IP Address, Ports, etc.)           | |    | |
+| | +---------------------------------------+ |    | |
+| +----------------------------------------------+ |
+|                                                  |
++--------------------------------------------------+
+
+
+
+----------------------------------------------------------------------------
+1. Minikube,k3s ,kind,microk8s(these are the different kubernetes cluster)
+2. KubeCTL(is the command-line tool used to interact with Kubernetes clusters)
+
+Installation:----------------------------------------------------------
+sudo apt update
+sudo apt install -y apt-transport-https ca-certificates curl
+
+curl -Lo minikube https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+chmod +x minikube
+sudo mv minikube /usr/local/bin/
+sudo apt install -y virtualbox
+minikube start --driver=virtualbox/docker/none
+
+verify:
+minikube status
+kubectl get nodes
+-------------------------------------------------------------------------
+kubectl get pods/deploy/all
+kubectl get all -A
+
+---------------------------------------------------------------------
+
++---------------------------------+
+|            Kubernetes           |
+|                                 |
+| +-----------------------------+ |
+| |          Deployment         | |
+| |      (replicas: 3)         | |
+| +-----------------------------+ |
+|         /          |          \|
+|        /           |           \
+| +-----+-----+   +-----+-----+   +-----+-----+
+| |   Pod 1   |   |   Pod 2   |   |   Pod 3   |
+| | (Running) |   | (Running) |   | (Running) |
+| +-----------+   +-----------+   +-----------+
+|                                 |
+|          +-------------------+ |
+|          |       Service      | |
+|          |    (Load Balancer) | |
+|          +-------------------+ |
+|                     |
+|         +-----------+-----------+
+|         |           |           |
+|   External Traffic   |           |
+| (Clients, Ingress)   |           |
+|                      (Routing)   |
++---------------------------------+
+
+----------------------------------------------------------------------
+
+you can use pod.yml congig file to but to get AutoScaling and AutoHealing we make deployment.yml
+kubectl apply -f pod.yml
+kubectl apply -f deployment.yml
+
+
+Service: ---> Provides Label and Selector
+
