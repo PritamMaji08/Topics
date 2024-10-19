@@ -8,16 +8,16 @@
 |  |   - Manages Images                       |  |
 |  |   - Manages Networks                     |  |
 |  |   - Listens for Client Requests          |  |
-|  |                                          |  |
+|  |                                          |  | 
 |  +------------------------------------------+  |
 |                     ^                          |
 |                     |                          |
 |                     | REST API                 |
 |                     |                          |
 |                     v                          |
-|  +------------------------------------------+  |
+|  +------------------------------------------+  | 
 |  |               Docker Client               |  |
-|  |                                          |  |
+|  |                (Docker CLI)              |  |
 |  |   - Issues Commands                      |  |
 |  |   - Displays Output                      |  |
 |  |   - User Interface                       |  |
@@ -71,8 +71,11 @@ sudo systemctl stop docker docker.socket --------------------> To stop the Docke
 
 docker build -t image1:my_first_image_to_print . -------------> To create a Docker IMAGE using a Dockerfile 
 
+To run from existing image:--------
 docker run image1:my_first_image_to_print --------------------> Docker pulls the image from your local, if not found in local it will pull from docker registry
-								A container is created then started
+OR								A container is created then started
+docker container run image1:my_first_image_to_print
+
 
 docker images--------------------> to list all Images
 docker ps -a --------------------> to list all Containers
@@ -93,10 +96,18 @@ docker exec -it <container_id_or_name> bash------------> You can then run any co
 
 Running a python or spark-app:
 docker exec <container_id_or_name> spark-submit <path_to_python_script.py>
-docker exec <container_id_or_name> python <path_to_python_script.py>
+docker exec <container_id_or_name> python <path_to_python_script.py> 
 
 
+docker container run -d -p 4000:3000 image2:tag2 
+where:
+	d: means run the terminal in detach mode
+	p: port mapping - This option maps port 3000 in the container to port 4000 on the host. 
+	   This means that any traffic sent to port 4000 on the host machine will be forwarded to port 3000 inside the container.
 
+docker info ------> here you can check username , to understand which docker hub account you are logged in.
+uses:
+sudo docker push pritammaji/pyhon-test:temp ----> to push image in docker registry/ docker hub
 
 multi-stage Dockerfile Examples:
 --------------------
@@ -156,6 +167,12 @@ docker-compose --version
 docker-compose up
 docker-compose down
 
+docker-compose config ------> to validate the yml file
+
+Scaling:----------------------------------------------------------------------------------------------------------------
+docker-compose up -d --scale database=4 ---------------->this will create 4 containers of the database service , which is in .yml file.
+
+depends on: i.e service db needs to be up , then only service web will run, if its down the other will be down
 
 docker-compose.yml:
 ----------------------
@@ -284,3 +301,108 @@ CMD ["node", "index.js"]
  
 1. Bind Mounts---> to have the copy of the docker containers directory in our Host directory[cannot be mnt with external host]
 2. Volumes------->Logical Partition on your host, where you can attach the specific directory of the docker Container[can be mnt with external host]
+
+docker volume create myvol1
+docker volume ls
+docker volume inspect myvol1
+docker volume myvol1
+docker volume prune
+docker creates a volume automatically when you use docker-compose up
+eg:
+docker run --name MyJenkins1 -v myvol:/var/jenkins_home -p 8080:8080 -p 50000:50000 Jenkins
+docker run --name MyJenkins2 -v myvol:/var/jenkins_home -p 8080:8080 -p 50000:50000 Jenkins
+where
+	Jenkins is the image , if not present in the local will be pulled from registry
+ 	-v is the mount path, myvol:/var/jenkins_home---> this is the mounted path.
+	MyJenkins1, MyJenkins2 two containers created with same mounted volume ---> once up will have same metadata/data
+
+docker run --name MyJenkins2 -v C:/users/Desktop/jenk:/var/jenkins_home -p 8080:8080 -p 50000:50000 jenkins -- Bind Mount
+where
+	C:/users/Desktop/jenk: refers to the host where the data resides. 
+
+
+
+
+Docker Swarm--------------------------------------------------------------
+A swarm is a group of machines that are running Docker and are joined into a group of cluster.
+
+
+          [Swarm Manager]  ----> master
+                 |
+      +----------+----------+
+      |                     |
+[docker daemon]    [docker daemon]
+    node 1             node 2
+       |                 |
+       |                 |
+   container a       container z    
+   container b       container y
+   container c       container x
+
+
+Install docker-machine
+Docker Machine: can create Docker hosts on local machines (e.g., using VirtualBox), cloud providers (like AWS, Google Cloud, Azure), or other environments. 
+		It abstracts the complexity of setting up a Docker environment
+
+base=https://github.com/docker/machine/releases/latest/download
+sudo curl -L $base/docker-machine-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-machine
+docker-machine version
+sudo apt install virtualbox
+VBoxManage --version
+
+docker-machine create  --driver virtualbox manager1  #machine is created
+docker-machine create  --driver virtualbox worker1  #worker node is created
+docker-machine create  --driver virtualbox worker2  #worker node is created
+docker-machine env manager1
+docker-machine ls
+docker-machine ssh manager1 #to get inside manager/node machine.
+docker swarm init --advertise-addr MANAGER_IP #initialize docker swarm, you can add multiple mangers as well
+docker node ls #--------------------> run this command in a manager machine
+docker swarm join-taken worker #--- run this command in manager machine it will return a command, run the command in any of the worker node machine and it will be added.
+docker info #check all details
+
+
+sudo docker service create --replicas 3 -p 80:80 --name web1 nginx
+where : web1 is the name of the service you are giving to the name of the service and , nginx is the image.
+	so there will be 3 instances running, on different nodes. If 1 nodes go down other nodes will be up.
+
+
+
+
+socker service ls # to check the services.. run this in the manager machine.
+docker service scale web1=4   # to increase form 3 to 4 
+more kind of:
+with docker swarm :
+docker stack deploy -c docker-compose.yml my_stack
+docker stack services my_stack
+docker service scale my_stack_web=5
+docker stack rm my_stack # to remove entire stack
+
+
+-----------------------------------------------------------
+docker network ls
+docker network rm name
+
+Bridge Network: is a virtual ethernet(by default)
+
+Container1 ---- talks to ------(via Bridge Network)------HOST.  Container sitting inside the host shld have this bridge network, otherwise to user application not reachable.
+
+Alternate : Host Networking, Overlay Networking(for multiple host)
+ 
+docker run -d --name container_1 nginx:latest  #--- container1 created
+docker run -d --name container_2 nginx:latest  #--- container2 created
+docker inspect container_1 continer_2 #-------- to check ip of the containers  (both in same subnet of ip)
+enter one container(docker exec -it bash) and try to talk/ping ip_address of the other container. They can talk to each other.
+So whats the problem, I want them to be logically isolated.
+
+docker network create secure-network # a custom Bridge Network created with name 'secure-network'
+docker network ls
+docker run -d --name container_3 --network=secure-network nginx:latest  #--- container3 created completely isolated
+
+
+Docker Daemon is run as root user, so one who get access to the docker daemon get access to the entire Cluster/ Host. 
+Kubernetes POD doesn't need to run on root user.
+Other Containers impacted because of each other.
+
+_____________________________________________
+docker init  #magically creates the Dockerfile,compose.yaml,.dockerignore, Readme.Docker.md files
