@@ -1,10 +1,15 @@
- +-------------------------------------------------------+
+Kubernetes is a container orchestration platform (and manages a cluster), where docker is a  container platform.
+
+containerd(in docker) : a container runtime that complies with the Container Runtime Interface (CRI). It is a part of Docker engine.
+So if you want kubernetes to run without docker you can use alternate of a container runtime like containerd:runc,Podman
+
++-------------------------------------------------------+
  |                       Kubernetes                       |
  |                                                       |
  | +-------------------+       +---------------------+  |
  | |   Control Plane   |       |      Data Nodes     |  |
  | |     (Master)      |       |         (Node)      |  |
- | | +--------------+  |       | +-----------------+ |  |
+ | | +--------------+  |       | +-----------------+ |  |runc
  | | |   API Server | <--------| |     Kubelet     | |  |
  | | +--------------+  |       | +-----------------+ |  |
  | |                   |       | +-----------------+ |  |
@@ -35,13 +40,13 @@
 | | |  Container |   |  Container |             | |
 | | |     A      |   |     B      |             | |
 | | +------------+   +------------+             | |
-| |      |                    |                   | |
+| |      |                    |                 | |
 | |      |    +---------------------------+      | |
 | |      |    |         Shared Volume     |      | |
 | |      |    +---------------------------+      | |
-| |      |                                   |    | |
+| |      |                                    |   | |
 | | +---------------------------------------+ |    | |
-| | |              Networking                | |    | |
+| | |              Networking               | |    | |
 | | |   (IP Address, Ports, etc.)           | |    | |
 | | +---------------------------------------+ |    | |
 | +----------------------------------------------+ |
@@ -63,9 +68,10 @@ chmod +x minikube
 sudo mv minikube /usr/local/bin/
 sudo apt install -y virtualbox
 minikube start --driver=virtualbox/docker/none
-
+---------------------------
 verify:
 minikube status
+kubectl cluster-info
 kubectl get nodes
 -------------------------------------------------------------------------
 kubectl get pods/deploy/all
@@ -105,6 +111,90 @@ you can use pod.yml congig file to but to get AutoScaling and AutoHealing we mak
 kubectl apply -f pod.yml
 kubectl apply -f deployment.yml
 
+Thus a POD is a runtime specification of a container
 
 Service: ---> Provides Label and Selector
+-------------------------------------------------------
+minikube start            #--------------->it creates a VM. On top of VM it creates a single node Kubernetes cluster.
+minikube start memory=4096 --driver=hyperkit/virtualbox/docker
+
+kubectl get nodes    #----------> you will see 1 node as Control Plane(master), Data Plane(worker)
+kubectl run nginx --image=nginx   # ----->The first nginx is the name of the POD/Container you run from the image nginx
+				          The POD will run on a worker node.
+kubectl get pods                  #------> Verify the POD
+kubectl get all  or kubectl get all -A                   #------> TO see everything
+
+--------------------------
+---pods/simple-pod.yaml----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+
+kubectl create -f simple-pod.yaml
+similarly docker command :------> docker run -d --name nginx -p 80:80 nginx:1.14.2   OR 
+				 docker container run -d --name nginx -p 80:80 nginx:1.14.2
+
+--------------------
+kubectl get pods -o wide ## --->similarly as docker ps -a 
+kubectl delete pod ngnix
+
+minikube ssh  ##--> to get into the minikube cluster
+<ip_addr> ssh ##--> in real case scenario, you use the ip address of the node to get inside 
+then: 	curl <ip_addr> ##-->inside to node to check
+
+------------------------------------------------------
+AutoHealing, AutoScaling ---> Deployment
+
+controllers/nginx-deployment.yaml----------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3   # ---> 3 replicas
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+
+
+kubectl get rs  #--> will show the replicas
+
+Kubernetes Controller :--> Replica Set
+
+kubectl get pod -w
+
+-----------------------------
+Kubernetes services:
+
+when a pod goes down and recreated by the replica factor, then the IP address of the POD changes
+
+SVC : --(Kube Proxy)-- assign:
+ 				Service Names to those IP address i.e Service Discovery using Labels and Selectors.
+				and perform Load Balance
+Services are of 3 types:
+			Cluster IP : Service available only inside the main cluster, no one can access
+			NodePort   : Service available to the organization, like one who has access to any single node has access to the cluster service
+			LoadBalancer: Service available to the external world.
+
+---------------------------------
+Kubernetes namespace: for multiple projects using the same cluster , a logical separation is required 
 
