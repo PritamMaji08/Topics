@@ -302,6 +302,8 @@ CMD ["node", "index.js"]
 1. Bind Mounts---> to have the copy of the docker containers directory in our Host directory[cannot be mnt with external host]
 2. Volumes------->Logical Partition on your host, where you can attach the specific directory of the docker Container[can be mnt with external host]
 
+docker run -it -v "$(pwd)":/apx python:3.10 --> where pwd is the current directory of host whose files will be reflected in the container with apx path.
+
 docker volume create myvol1
 docker volume ls
 docker volume inspect myvol1
